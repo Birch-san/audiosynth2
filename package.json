@@ -4,7 +4,7 @@
   "description": "",
   "keywords": [],
   "main": "dist/audiosynth2.umd.js",
-  "module": "dist/audiosynth2.es5.js",
+  "module": "dist/audiosynth2.mjs",
   "typings": "dist/types/audiosynth2.d.ts",
   "files": [
     "dist"
@@ -12,7 +12,7 @@
   "author": "Alex Birch <Birch-san@users.noreply.github.com>",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/Birch-san/audiosynth2.git"
   },
   "license": "MIT",
   "engines": {
