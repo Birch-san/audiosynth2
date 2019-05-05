@@ -4,6 +4,8 @@ import sourceMaps from 'rollup-plugin-sourcemaps'
 import camelCase from 'lodash.camelcase'
 import typescript from 'rollup-plugin-typescript2'
 import json from 'rollup-plugin-json'
+import livereload from 'rollup-plugin-livereload'
+import serve from 'rollup-plugin-serve'
 
 const pkg = require('./package.json')
 
@@ -34,5 +36,15 @@ export default {
 
     // Resolve source maps to the original source
     sourceMaps(),
+
+    // https://github.com/thgh/vuejs-templates-rollup/blob/master/template/rollup.config.js
+    livereload({
+      watch: ['demo', 'dist'],
+    }),
+    serve({
+      open: true,
+
+      contentBase: ['demo', 'dist'],
+    }),
   ],
 }
