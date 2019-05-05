@@ -1,0 +1,21 @@
+{
+  "name": "audiosynth2",
+  "version": "1.0.0",
+  "description": "",
+  "license": "MIT",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/Birch-san/audiosynth2.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alex Birch",
+  "license": "MIT",
+  "devDependencies": {
+    "@pika/plugin-build-web": "^0.3.16",
+    "@pika/plugin-bundle-web": "^0.3.16",
+    "@pika/plugin-ts-standard-pkg": "^0.3.16",
+    "typescript": "^3.4.5"
+  }
+}
