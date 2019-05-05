@@ -27,6 +27,7 @@
     "@pika/plugin-build-web": "^0.3.16",
     "@pika/plugin-bundle-web": "^0.3.16",
     "@pika/plugin-ts-standard-pkg": "^0.3.16",
+    "prettier": "^1.17.0",
     "typescript": "^3.4.5"
   }
 }
