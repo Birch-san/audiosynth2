@@ -43,8 +43,9 @@ export default {
     }),
     serve({
       open: true,
+      openPage: '/demo/',
 
-      contentBase: ['demo', 'dist'],
+      contentBase: '',
     }),
   ],
 }
