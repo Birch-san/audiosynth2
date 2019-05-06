@@ -2,5 +2,5 @@
   // import "core-js/fn/array.find"
   // ...
 export default class AudioSynth {
-
+  generate() {}
 }

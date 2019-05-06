@@ -11,6 +11,13 @@ const pkg = require('./package.json')
 
 const libraryName = 'audiosynth2'
 
+// const x = livereload({
+//   watch: ['demo', 'dist'],
+// });
+// delete x.banner;
+// console.log(x);
+// process.exit(0);
+
 export default {
   input: `src/${libraryName}.ts`,
   output: [
@@ -38,9 +45,14 @@ export default {
     sourceMaps(),
 
     // https://github.com/thgh/vuejs-templates-rollup/blob/master/template/rollup.config.js
-    livereload({
+    ((nominal) => {
+      delete nominal.banner;
+      return nominal;
+    })(livereload({
       watch: ['demo', 'dist'],
-    }),
+      extraExts: ['mjs'],
+    })),
+
     serve({
       open: true,
       openPage: '/demo/',
