@@ -13,9 +13,102 @@ const pack = function(c: number, arg: number) {
   ][c];
 };
 
-// const 
+export type EnvelopeFunc
+= (
+  sampleRate: number,
+  frequency: number,
+  volume: number,
+  ) => number;
 
-export default class AudioSynth {
+export type WaveFunc
+= (
+  i: number,
+  sampleRate: number,
+  frequency: number,
+  volume: number,
+  ) => number;
+
+export interface IVoiceProfile {
+  name: string;
+  attack: EnvelopeFunc;
+  dampen: EnvelopeFunc;
+  wave: WaveFunc;
+}
+
+export interface IAudioSynthOptions {
+  ctx: AudioContext;
+  bitsPerSample?: number;
+  channels?: number;
+}
+
+export type VoiceFactory
+= (frequency: number) => Voice;
+
+export class AudioSynth {
+  private readonly ctx: AudioContext;
+  private readonly bitsPerSample: number;
+  private readonly channels: number;
+  constructor({
+    ctx,
+    bitsPerSample = 16,
+    channels = 1,
+  }: IAudioSynthOptions) {
+    this.ctx = ctx;
+    this.bitsPerSample = bitsPerSample;
+    this.channels = channels;
+  }
+  makeVoiceFactory(profile: IVoiceProfile): VoiceFactory {
+    return this.makeVoice.bind(this, profile);
+  }
+  makeVoice(
+    profile: IVoiceProfile,
+    frequency: number,
+    ): Voice {
+    const processorNode = this.ctx.createScriptProcessor(undefined /* consider non-zero on WebKit */, 0, this.channels);
+    processorNode.connect(this.ctx.destination);
+    return new Voice({
+      profile,
+      frequency,
+      sampleRate: this.ctx.sampleRate,
+      bitsPerSample: this.bitsPerSample,
+      channels: this.channels,
+    })
+  }
+}
+
+export interface IVoiceOptions {
+  profile: IVoiceProfile;
+  sampleRate: number;
+  frequency: number;
+  bitsPerSample?: number;
+  channels?: number;
+  volume?: number;
+}
+
+export class Voice {
+  private readonly profile: IVoiceProfile;
+  private readonly sampleRate: number;
+  private readonly frequency: number;
+  private readonly bitsPerSample: number;
+  private readonly channels: number;
+  private readonly volume: number;
+
+  constructor({
+    profile,
+    sampleRate,
+    frequency,
+    bitsPerSample = 16,
+    channels = 1,
+    volume = 32768,
+  }: IVoiceOptions) {
+    this.profile = profile;
+    this.sampleRate = sampleRate;
+    this.frequency = frequency;
+    this.bitsPerSample = bitsPerSample;
+    this.channels = channels;
+    this.volume = volume;
+  }
+
   *generate(): IterableIterator<number> {
     // var frequency = this._notes[note] * Math.pow(2,octave-4);
     // var sampleRate = this._sampleRate;

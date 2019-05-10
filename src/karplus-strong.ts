@@ -26,8 +26,8 @@ export class Pluck {
   private processorNode: ScriptProcessorNode;
   private playing: boolean = false;
 
-  constructor(ctx: AudioContext) {
-    this.freq = 440;
+  constructor(ctx: AudioContext, freq: number) {
+    this.freq = freq;
     this.sampleRate = ctx.sampleRate;
     this.processorNode = ctx.createScriptProcessor( 0 /* consider non-zero on WebKit */, 0, 1 );
     this.processorNode.connect( ctx.destination );

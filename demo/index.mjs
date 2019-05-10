@@ -1,20 +1,4 @@
-import '/node_modules/audioworklet-polyfill/dist/audioworklet-polyfill.js'
-// import Pluck2 from '/dist/esm/audiosynth2.mjs'
-
-if (typeof registerProcessor !== 'function') {
-  /**
-   * @param {string} name
-   * @param {AudioWorkletProcessor} Processor
-   */
-  self.registerProcessor = (name, Processor) => {
-    processors[name] = {
-      Processor,
-      properties: Processor.parameterDescriptors || []
-    };
-  }
-}
-
-// new Pluck2();
+import Pluck from '/dist/esm/index.mjs'
 
 const ctx = new AudioContext()
 // pluck = new Pluck2();
