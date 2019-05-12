@@ -1,12 +1,20 @@
-import Pluck from '/dist/esm/index.mjs'
+// import Pluck from '/dist/esm/index.mjs'
+import { AudioSynth, voiceProfiles, getScriptProcessor } from '../dist/esm/audiosynth2.js'
 
 const ctx = new AudioContext()
+const synth = new AudioSynth({ctx})
+const voiceProfile = voiceProfiles.piano;
+const factory = synth.makeVoiceFactory(voiceProfile);
+const voice = factory(220);
+getScriptProcessor(ctx, voice)
 // pluck = new Pluck2();
 // pluck.play( 220 );
-ctx.audioWorklet.addModule('/dist/esm/karplus-strong.mjs')
-.then((x) => {
-  console.log(x)
-  })
+// ctx.audioWorklet.addModule('/dist/esm/karplus-strong.mjs')
+// .then((x) => {
+//   console.log(x)
+//   })
+
+
 
 /* 
 

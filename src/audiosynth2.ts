@@ -20,12 +20,32 @@ export type EnvelopeFunc
   volume: number,
   ) => number;
 
-export type WaveFunc
-= (
-  i: number,
+// export type WaveFunc
+// = (
+//   i: number,
+//   sampleRate: number,
+//   frequency: number,
+//   volume: number,
+//   ) => number;
+
+export interface WaveInput {
+  sampleIx: number,
   sampleRate: number,
   frequency: number,
   volume: number,
+  modulators: WaveModulator[],
+  vars: { [key: string]: any},
+}
+
+export type WaveFunc
+= (input: WaveInput) => number;
+
+export type WaveModulator
+= (
+  sampleIx: number,
+  sampleRate: number,
+  frequency: number,
+  x: number,
   ) => number;
 
 export interface IVoiceProfile {
@@ -64,8 +84,8 @@ export class AudioSynth {
     profile: IVoiceProfile,
     frequency: number,
     ): Voice {
-    const processorNode = this.ctx.createScriptProcessor(undefined /* consider non-zero on WebKit */, 0, this.channels);
-    processorNode.connect(this.ctx.destination);
+    // const processorNode = this.ctx.createScriptProcessor(undefined /* consider non-zero on WebKit */, 0, this.channels);
+    // processorNode.connect(this.ctx.destination);
     return new Voice({
       profile,
       frequency,
@@ -85,12 +105,33 @@ export interface IVoiceOptions {
   volume?: number;
 }
 
+/**
+ * Note to self: article on how to do audio effects
+ * {@link https://noisehack.com/custom-audio-effects-javascript-web-audio-api/}
+ **/
+
+export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
+  const samples = voice.generate();
+  const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(0 /* consider non-zero on WebKit */, 0, voice.channels);
+  processorNode.connect(ctx.destination);
+  processorNode.onaudioprocess = (event: AudioProcessingEvent) => {
+    const out: Float32Array = event.outputBuffer.getChannelData(0);
+    for (let i = 0; i < out.length; ++i ) {
+      const result: IteratorResult<number> = samples.next();
+      if (result.done) {
+        out[i] = 0;
+      }
+      out[i] = result.value;
+    }
+  };
+}
+
 export class Voice {
   private readonly profile: IVoiceProfile;
   private readonly sampleRate: number;
   private readonly frequency: number;
   private readonly bitsPerSample: number;
-  private readonly channels: number;
+  public readonly channels: number;
   private readonly volume: number;
 
   constructor({
@@ -115,34 +156,77 @@ export class Voice {
     // var volume = this._volume;
     // var channels = this._channels;
     // var bitsPerSample = this._bitsPerSample;
-    // var attack = thisSound.attack(sampleRate, frequency, volume);
-    // var dampen = thisSound.dampen(sampleRate, frequency, volume);
-    // var waveFunc = thisSound.wave;
-    // var waveBind = {modulate: this._mod, vars: this._temp};
-    // var val = 0;
-    // var curVol = 0;
+    const duration: string|undefined = undefined;
+    const time = duration
+    ? parseFloat(duration)
+    : 2;
 
-    // var data = new Uint8Array(new ArrayBuffer(Math.ceil(sampleRate * time * 2)));
-    // var attackLen = (sampleRate * attack) | 0;
-    // var decayLen = (sampleRate * time) | 0;
+    const attack = this.profile.attack(this.sampleRate, this.frequency, this.volume);
+    const dampen = this.profile.dampen(this.sampleRate, this.frequency, this.volume);
+    const waveFunc = this.profile.wave;
+    // const waveMod: WaveModulator = 
+    const modulators: WaveModulator[] = [
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+    ];
+    const vars = {};
+    // const waveBind = {modulate: [waveMod], vars: {}};
+    let val = 0;
+    // let curVol = 0;
 
-    // for (var i = 0 | 0; i !== attackLen; i++) {
+    const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)));
+    const attackLen = (this.sampleRate * attack) | 0;
+    const decayLen = (this.sampleRate * time) | 0;
+
+    let sampleIx = 0;
+    for (; sampleIx !== attackLen; sampleIx++) {
   
-    //   val = volume * (i/(sampleRate*attack)) * waveFunc.call(waveBind, i, sampleRate, frequency, volume);
+      val = this.volume
+      * (sampleIx/(this.sampleRate*attack))
+      * waveFunc({
+        sampleIx,
+        sampleRate: this.sampleRate,
+        frequency: this.frequency,
+        volume: this.volume,
+        modulators,
+        vars
+      });
 
-    //   data[i << 1] = val;
-    //   data[(i << 1) + 1] = val >> 8;
+      data[sampleIx << 1] = val;
+      data[(sampleIx << 1) + 1] = val >> 8;
 
-    // }
+      yield val;
+    }
 
-    // for (; i !== decayLen; i++) {
+    for (; sampleIx !== decayLen; sampleIx++) {
 
-    //   val = volume * Math.pow((1-((i-(sampleRate*attack))/(sampleRate*(time-attack)))),dampen) * waveFunc.call(waveBind, i, sampleRate, frequency, volume);
+      val = this.volume * Math.pow(
+        (1-((sampleIx-(this.sampleRate*attack))
+        /(this.sampleRate*(time-attack)))),
+        dampen)
+        * waveFunc({
+          sampleIx,
+          sampleRate: this.sampleRate,
+          frequency: this.frequency,
+          volume: this.volume,
+          modulators,
+          vars
+        });
 
-    //   data[i << 1] = val;
-    //   data[(i << 1) + 1] = val >> 8;
-
-    // }
+      data[sampleIx << 1] = val;
+      data[(sampleIx << 1) + 1] = val >> 8;
+      
+      yield val;
+    }
 
     // var out = [
     //   'RIFF',
@@ -167,5 +251,31 @@ export class Voice {
     // this._fileCache[sound][octave-1][note][time] = dataURI;
     // if(this._debug) { console.log((new Date).valueOf() - t, 'ms to generate'); }
     // return dataURI;
+  }
+}
+
+export const voiceProfiles: Record<'piano', IVoiceProfile> = {
+  piano: {
+    name: 'piano',
+    attack: () => 0.002,
+    dampen: (sampleRate, frequency, volume) => 
+    (0.5 * Math.log((frequency * volume) / sampleRate)) ** 2,
+    wave: ({
+      sampleIx,
+      sampleRate,
+      frequency,
+      volume,
+      modulators,
+      vars,
+    }: WaveInput): number => {
+      const base = modulators[0];
+      return modulators[1](
+        sampleIx,
+        sampleRate,
+        frequency,
+        base(sampleIx, sampleRate, frequency, 0) ** 2
+        + (0.75 * base(sampleIx, sampleRate, frequency, 0.25))
+        + (0.1 * base(sampleIx, sampleRate, frequency, 0.5)));
+    }
   }
 }

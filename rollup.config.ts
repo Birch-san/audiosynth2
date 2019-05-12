@@ -73,7 +73,7 @@ export default {
     renameExtensions({
       include: ['**/*.ts'],
       mappings: {
-          '.ts': '.mjs',
+          '.ts': '.js',
       },
     }),
     // Allow bundling cjs modules (unlike webpack, rollup doesn't understand cjs)
