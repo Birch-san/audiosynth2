@@ -209,18 +209,18 @@ export class Voice {
 
     for (; sampleIx !== decayLen; sampleIx++) {
 
-      val = this.volume * Math.pow(
-        (1-((sampleIx-(this.sampleRate*attack))
-        /(this.sampleRate*(time-attack)))),
-        dampen)
-        * waveFunc({
-          sampleIx,
-          sampleRate: this.sampleRate,
-          frequency: this.frequency,
-          volume: this.volume,
-          modulators,
-          vars
-        });
+      val = this.volume
+      * (1-((sampleIx-(this.sampleRate*attack))
+      /(this.sampleRate*(time-attack))))
+      ** dampen
+      * waveFunc({
+        sampleIx,
+        sampleRate: this.sampleRate,
+        frequency: this.frequency,
+        volume: this.volume,
+        modulators,
+        vars
+      });
 
       data[sampleIx << 1] = val;
       data[(sampleIx << 1) + 1] = val >> 8;
