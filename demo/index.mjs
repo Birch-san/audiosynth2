@@ -1,11 +1,25 @@
+//no@ts-check
+// <reference path="../dist/types/index.d.ts" />
 // import Pluck from '/dist/esm/index.mjs'
-import { AudioSynth, voiceProfiles, getScriptProcessor } from '../dist/esm/audiosynth2.js'
+// maybe we should just use npm link
+
+import { AudioSynth, voiceProfiles, getScriptProcessor } from '../dist/esm/index.js'
 
 const ctx = new AudioContext()
 const synth = new AudioSynth({ctx})
 const voiceProfile = voiceProfiles.piano;
 const factory = synth.makeVoiceFactory(voiceProfile);
 const voice = factory(220);
+const generator = voice.generate();
+const arr = new Float32Array(100);
+for (let i=0; i<100; i++) {
+  const generated = generator.next();
+  if (generated.done) {
+    break;
+  }
+  arr[i] = generated.value;
+}
+console.log(arr)
 getScriptProcessor(ctx, voice)
 // pluck = new Pluck2();
 // pluck.play( 220 );

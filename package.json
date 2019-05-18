@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "",
   "keywords": [],
-  "module": "dist/esm/index.ts",
-  "typings": "dist/types/audiosynth2.d.ts",
+  "module": "dist/esm/index.js",
+  "typings": "dist/types/index.d.ts",
   "files": [
     "dist"
   ],

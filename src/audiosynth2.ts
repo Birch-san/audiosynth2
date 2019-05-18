@@ -116,12 +116,17 @@ export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
   processorNode.connect(ctx.destination);
   processorNode.onaudioprocess = (event: AudioProcessingEvent) => {
     const out: Float32Array = event.outputBuffer.getChannelData(0);
-    for (let i = 0; i < out.length; ++i ) {
+    for (let i = 0; i < out.length; i++ ) {
       const result: IteratorResult<number> = samples.next();
       if (result.done) {
-        out[i] = 0;
+        processorNode.disconnect();
+        processorNode.onaudioprocess = null;
+        break;
       }
+      // const val = Math.floor(result.value);
       out[i] = result.value;
+      // out[i << 1] = val;
+      // out[(i << 1) + 1] = val >> 8;
     }
   };
 }
@@ -140,7 +145,7 @@ export class Voice {
     frequency,
     bitsPerSample = 16,
     channels = 1,
-    volume = 32768,
+    volume = 1,
   }: IVoiceOptions) {
     this.profile = profile;
     this.sampleRate = sampleRate;
@@ -166,17 +171,17 @@ export class Voice {
     const waveFunc = this.profile.wave;
     // const waveMod: WaveModulator = 
     const modulators: WaveModulator[] = [
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * (sampleIx / sampleRate) * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
     ];
     const vars = {};
     // const waveBind = {modulate: [waveMod], vars: {}};
@@ -188,10 +193,10 @@ export class Voice {
     const decayLen = (this.sampleRate * time) | 0;
 
     let sampleIx = 0;
-    for (; sampleIx !== attackLen; sampleIx++) {
+    for (; sampleIx < attackLen; sampleIx++) {
   
       val = this.volume
-      * (sampleIx/(this.sampleRate*attack))
+      * (sampleIx / (this.sampleRate * attack))
       * waveFunc({
         sampleIx,
         sampleRate: this.sampleRate,
@@ -201,17 +206,18 @@ export class Voice {
         vars
       });
 
-      data[sampleIx << 1] = val;
-      data[(sampleIx << 1) + 1] = val >> 8;
+      data[sampleIx << 1] = val*32768;
+      data[(sampleIx << 1) + 1] = (val*32768) >> 8;
 
       yield val;
     }
 
-    for (; sampleIx !== decayLen; sampleIx++) {
+    for (; sampleIx < decayLen; sampleIx++) {
 
       val = this.volume
-      * (1-((sampleIx-(this.sampleRate*attack))
-      /(this.sampleRate*(time-attack))))
+      * (1-(
+          (sampleIx - this.sampleRate * attack)
+          /(this.sampleRate * (time - attack))))
       ** dampen
       * waveFunc({
         sampleIx,
@@ -222,11 +228,13 @@ export class Voice {
         vars
       });
 
-      data[sampleIx << 1] = val;
-      data[(sampleIx << 1) + 1] = val >> 8;
+      data[sampleIx << 1] = val*32768;
+      data[(sampleIx << 1) + 1] = (val*32768) >> 8;
       
       yield val;
     }
+
+    console.log(data)
 
     // var out = [
     //   'RIFF',
