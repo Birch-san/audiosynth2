@@ -6,19 +6,11 @@ import camelCase from 'lodash.camelcase'
 import typescript2 from 'rollup-plugin-typescript2'
 import renameExtensions from '@betit/rollup-plugin-rename-extensions'
 import json from 'rollup-plugin-json'
-import livereload from 'rollup-plugin-livereload'
-import serve from 'rollup-plugin-serve'
 
 const pkg = require('./package.json')
 
 const libraryName = 'audiosynth2'
 
-// const x = livereload({
-//   watch: ['demo', 'dist'],
-// });
-// delete x.banner;
-// console.log(x);
-// process.exit(0);
 // https://github.com/rollup/rollup/issues/2688
 export default {
   // input: {
@@ -85,21 +77,5 @@ export default {
 
     // Resolve source maps to the original source
     sourceMaps(),
-
-    // https://github.com/thgh/vuejs-templates-rollup/blob/master/template/rollup.config.js
-    ((nominal) => {
-      delete nominal.banner;
-      return nominal;
-    })(livereload({
-      watch: ['demo', 'dist'],
-      extraExts: ['mjs'],
-    })),
-
-    serve({
-      open: true,
-      openPage: '/demo/',
-
-      contentBase: '',
-    }),
   ],
 }
