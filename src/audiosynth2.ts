@@ -170,18 +170,11 @@ export class Voice {
     const dampen = this.profile.dampen(this.sampleRate, this.frequency, this.volume);
     const waveFunc = this.profile.wave;
     // const waveMod: WaveModulator = 
-    const modulators: WaveModulator[] = [
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
-    ];
+    const modulators: WaveModulator[]
+    = [1, 0.5].flatMap((coefficient: number): WaveModulator[] =>
+      [2, 4, 8, .5, .25].map((theta: number): WaveModulator =>
+        (sampleIx, sampleRate, frequency, x) =>
+        coefficient * Math.sin(theta * Math.PI * sampleIx / sampleRate * frequency + x)));
     const vars = {};
     // const waveBind = {modulate: [waveMod], vars: {}};
     let val = 0;
@@ -283,8 +276,8 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
         sampleRate,
         frequency,
         base(sampleIx, sampleRate, frequency, 0) ** 2
-        + (0.75 * base(sampleIx, sampleRate, frequency, 0.25))
-        + (0.1 * base(sampleIx, sampleRate, frequency, 0.5)));
+        + 0.75 * base(sampleIx, sampleRate, frequency, 0.25)
+        + 0.1 * base(sampleIx, sampleRate, frequency, 0.5));
     }
   }
 }
