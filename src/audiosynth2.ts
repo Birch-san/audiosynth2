@@ -1,26 +1,22 @@
+import ADSREnvelope from 'adsr-envelope'
+
 // Import here Polyfills if needed. Recommended core-js (npm i -D core-js)
-  // import "core-js/fn/array.find"
-  // ...
+// import "core-js/fn/array.find"
+// ...
 
-export interface IVoice {
-
-}
+export interface IVoice {}
 
 const pack = function(c: number, arg: number) {
-  return [
-  new Uint8Array([arg, arg >> 8]),
-  new Uint8Array([arg, arg >> 8, arg >> 16, arg >> 24])
-  ][c];
-};
-
-export interface EnvelopeInput {
-  sampleRate: number;
-  frequency: number;
-  volume: number;
+  return [new Uint8Array([arg, arg >> 8]), new Uint8Array([arg, arg >> 8, arg >> 16, arg >> 24])][c]
 }
 
-export type EnvelopeFunc
-= (input: EnvelopeInput) => number;
+export interface EnvelopeInput {
+  sampleRate: number
+  frequency: number
+  volume: number
+}
+
+export type EnvelopeFunc = (input: EnvelopeInput) => number
 
 // export type WaveFunc
 // = (
@@ -31,63 +27,53 @@ export type EnvelopeFunc
 //   ) => number;
 
 export interface WaveInput {
-  sampleIx: number,
-  sampleRate: number,
-  frequency: number,
-  volume: number,
-  modulators: WaveModulator[],
-  vars: { [key: string]: any},
+  sampleIx: number
+  sampleRate: number
+  frequency: number
+  volume: number
+  modulators: WaveModulator[]
+  vars: { [key: string]: any }
 }
 
-export type WaveFunc
-= (input: WaveInput) => number;
+export type WaveFunc = (input: WaveInput) => number
 
 export interface ModulatorInput {
-  sampleIx: number;
-  sampleRate: number;
-  frequency: number;
-  x: number;
+  sampleIx: number
+  sampleRate: number
+  frequency: number
+  x: number
 }
 
-export type WaveModulator
-= (input: ModulatorInput) => number;
+export type WaveModulator = (input: ModulatorInput) => number
 
 export interface IVoiceProfile {
-  name: string;
-  attack: EnvelopeFunc;
-  dampen: EnvelopeFunc;
-  wave: WaveFunc;
+  name: string
+  attack: EnvelopeFunc
+  dampen: EnvelopeFunc
+  wave: WaveFunc
 }
 
 export interface IAudioSynthOptions {
-  ctx: AudioContext;
-  bitsPerSample?: number;
-  channels?: number;
+  ctx: AudioContext
+  bitsPerSample?: number
+  channels?: number
 }
 
-export type VoiceFactory
-= (frequency: number) => Voice;
+export type VoiceFactory = (frequency: number) => Voice
 
 export class AudioSynth {
-  private readonly ctx: AudioContext;
-  private readonly bitsPerSample: number;
-  private readonly channels: number;
-  constructor({
-    ctx,
-    bitsPerSample = 16,
-    channels = 1,
-  }: IAudioSynthOptions) {
-    this.ctx = ctx;
-    this.bitsPerSample = bitsPerSample;
-    this.channels = channels;
+  private readonly ctx: AudioContext
+  private readonly bitsPerSample: number
+  private readonly channels: number
+  constructor({ ctx, bitsPerSample = 16, channels = 1 }: IAudioSynthOptions) {
+    this.ctx = ctx
+    this.bitsPerSample = bitsPerSample
+    this.channels = channels
   }
   makeVoiceFactory(profile: IVoiceProfile): VoiceFactory {
-    return this.makeVoice.bind(this, profile);
+    return this.makeVoice.bind(this, profile)
   }
-  makeVoice(
-    profile: IVoiceProfile,
-    frequency: number,
-    ): Voice {
+  makeVoice(profile: IVoiceProfile, frequency: number): Voice {
     // const processorNode = this.ctx.createScriptProcessor(undefined /* consider non-zero on WebKit */, 0, this.channels);
     // processorNode.connect(this.ctx.destination);
     return new Voice({
@@ -95,18 +81,18 @@ export class AudioSynth {
       frequency,
       sampleRate: this.ctx.sampleRate,
       bitsPerSample: this.bitsPerSample,
-      channels: this.channels,
+      channels: this.channels
     })
   }
 }
 
 export interface IVoiceOptions {
-  profile: IVoiceProfile;
-  sampleRate: number;
-  frequency: number;
-  bitsPerSample?: number;
-  channels?: number;
-  volume?: number;
+  profile: IVoiceProfile
+  sampleRate: number
+  frequency: number
+  bitsPerSample?: number
+  channels?: number
+  volume?: number
 }
 
 /**
@@ -115,33 +101,38 @@ export interface IVoiceOptions {
  **/
 
 export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
-  const samples = voice.generate();
-  const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(0 /* consider non-zero on WebKit */, 0, voice.channels);
-  processorNode.connect(ctx.destination);
+  const samples = voice.generate()
+  const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(
+    0 /* consider non-zero on WebKit */,
+    0,
+    voice.channels
+  )
+  processorNode.connect(ctx.destination)
   processorNode.onaudioprocess = (event: AudioProcessingEvent) => {
-    const out: Float32Array = event.outputBuffer.getChannelData(0);
-    for (let i = 0; i < out.length; i++ ) {
-      const result: IteratorResult<number> = samples.next();
+    const out: Float32Array = event.outputBuffer.getChannelData(0)
+    for (let i = 0; i < out.length; i++) {
+      const result: IteratorResult<number> = samples.next()
       if (result.done) {
-        processorNode.disconnect();
-        processorNode.onaudioprocess = null;
-        break;
+        processorNode.disconnect()
+        processorNode.onaudioprocess = null
+        break
       }
       // const val = Math.floor(result.value);
-      out[i] = result.value;
+      out[i] = result.value
       // out[i << 1] = val;
       // out[(i << 1) + 1] = val >> 8;
     }
-  };
+  }
 }
 
 export class Voice {
-  private readonly profile: IVoiceProfile;
-  private readonly sampleRate: number;
-  private readonly frequency: number;
-  private readonly bitsPerSample: number;
-  public readonly channels: number;
-  private readonly volume: number;
+  private readonly profile: IVoiceProfile
+  private readonly sampleRate: number
+  private readonly frequency: number
+  private readonly bitsPerSample: number
+  public readonly channels: number
+  private readonly volume: number
+  private readonly _envelope: ADSREnvelope
 
   constructor({
     profile,
@@ -149,14 +140,26 @@ export class Voice {
     frequency,
     bitsPerSample = 16,
     channels = 1,
-    volume = 1,
+    volume = 1
   }: IVoiceOptions) {
-    this.profile = profile;
-    this.sampleRate = sampleRate;
-    this.frequency = frequency;
-    this.bitsPerSample = bitsPerSample;
-    this.channels = channels;
-    this.volume = volume;
+    this.profile = profile
+    this.sampleRate = sampleRate
+    this.frequency = frequency
+    this.bitsPerSample = bitsPerSample
+    this.channels = channels
+    this.volume = volume
+    this._envelope = new ADSREnvelope({
+      attackTime: 0.5,
+      decayTime: 0.25,
+      sustainLevel: 0.8,
+      releaseTime: 2.5,
+      gateTime: 6,
+      releaseCurve: 'exp'
+    })
+  }
+
+  get envelope(): ADSREnvelope {
+    return this._envelope
   }
 
   *generate(): IterableIterator<number> {
@@ -165,71 +168,72 @@ export class Voice {
     // var volume = this._volume;
     // var channels = this._channels;
     // var bitsPerSample = this._bitsPerSample;
-    const duration: string|undefined = undefined;
-    const time = duration
-    ? parseFloat(duration)
-    : 2;
+    const duration: string | undefined = undefined
+    const time = duration ? parseFloat(duration) : 2
 
-    const attack = this.profile.attack({sampleRate: this.sampleRate, frequency: this.frequency, volume: this.volume});
-    const dampen = this.profile.dampen({sampleRate: this.sampleRate, frequency: this.frequency, volume: this.volume});
-    const waveFunc = this.profile.wave;
-    // const waveMod: WaveModulator = 
-    const modulators: WaveModulator[]
-    = [1, 0.5].flatMap((coefficient: number): WaveModulator[] =>
-      [2, 4, 8, .5, .25].map((theta: number): WaveModulator =>
-        ({sampleIx, sampleRate, frequency, x}) =>
-        coefficient * Math.sin(theta * Math.PI * sampleIx / sampleRate * frequency + x)));
-    const vars = {};
+    const attack = this.profile.attack({
+      sampleRate: this.sampleRate,
+      frequency: this.frequency,
+      volume: this.volume
+    })
+    const dampen = this.profile.dampen({
+      sampleRate: this.sampleRate,
+      frequency: this.frequency,
+      volume: this.volume
+    })
+    const waveFunc = this.profile.wave
+    // const waveMod: WaveModulator =
+    const modulators: WaveModulator[] = [1, 0.5].flatMap(
+      (coefficient: number): WaveModulator[] =>
+        [2, 4, 8, 0.5, 0.25].map(
+          (theta: number): WaveModulator => ({ sampleIx, sampleRate, frequency, x }) =>
+            coefficient * Math.sin(((theta * Math.PI * sampleIx) / sampleRate) * frequency + x)
+        )
+    )
+    const vars = {}
     // const waveBind = {modulate: [waveMod], vars: {}};
-    let val = 0;
+    let val = 0
     // let curVol = 0;
 
-    const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)));
-    const attackLen = (this.sampleRate * attack) | 0;
-    const decayLen = (this.sampleRate * time) | 0;
+    const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)))
+    // 44000 * 0.00
+    const attackLen = (this.sampleRate * attack) | 0
+    const decayLen = (this.sampleRate * time) | 0
 
-    let sampleIx = 0;
+    let sampleIx = 0
     for (; sampleIx < attackLen; sampleIx++) {
-  
-      val = this.volume
-      * sampleIx
-      / this.sampleRate
-      * attack
-      * waveFunc({
+      // (0*0.002)/44000
+      // (1*0.002)/44000
+
+      val = waveFunc({
         sampleIx,
         sampleRate: this.sampleRate,
         frequency: this.frequency,
         volume: this.volume,
         modulators,
         vars
-      });
+      })
 
-      data[sampleIx << 1] = val*32768;
-      data[(sampleIx << 1) + 1] = (val*32768) >> 8;
+      data[sampleIx << 1] = val * 32768
+      data[(sampleIx << 1) + 1] = (val * 32768) >> 8
 
-      yield val;
+      yield val
     }
 
     for (; sampleIx < decayLen; sampleIx++) {
-
-      val = this.volume
-      * (1-
-          (sampleIx - this.sampleRate * attack)
-          /(this.sampleRate * (time - attack)))
-      ** dampen
-      * waveFunc({
+      val = waveFunc({
         sampleIx,
         sampleRate: this.sampleRate,
         frequency: this.frequency,
         volume: this.volume,
         modulators,
         vars
-      });
+      })
 
-      data[sampleIx << 1] = val*32768;
-      data[(sampleIx << 1) + 1] = (val*32768) >> 8;
-      
-      yield val;
+      data[sampleIx << 1] = val * 32768
+      data[(sampleIx << 1) + 1] = (val * 32768) >> 8
+
+      yield val
     }
 
     console.log(data)
@@ -264,25 +268,19 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
   piano: {
     name: 'piano',
     attack: () => 0.002,
-    dampen: ({sampleRate, frequency, volume}) => 
-    (0.5 * Math.log(frequency * volume / sampleRate)) ** 2,
-    wave: ({
-      sampleIx,
-      sampleRate,
-      frequency,
-      volume,
-      modulators,
-      vars,
-    }: WaveInput): number => {
-      const base = modulators[0];
+    dampen: ({ sampleRate, frequency, volume }) =>
+      (0.5 * Math.log((frequency * volume) / sampleRate)) ** 2,
+    wave: ({ sampleIx, sampleRate, frequency, volume, modulators, vars }: WaveInput): number => {
+      const base = modulators[0]
       return base({
         sampleIx,
         sampleRate,
         frequency,
-        x: base({sampleIx, sampleRate, frequency, x: 0}) ** 2
-        + 0.75 * base({sampleIx, sampleRate, frequency, x: 0.25})
-        + 0.1 * base({sampleIx, sampleRate, frequency, x: 0.5})
-      });
+        x:
+          base({ sampleIx, sampleRate, frequency, x: 0 }) ** 2 +
+          0.75 * base({ sampleIx, sampleRate, frequency, x: 0.25 }) +
+          0.1 * base({ sampleIx, sampleRate, frequency, x: 0.5 })
+      })
     }
   }
 }
