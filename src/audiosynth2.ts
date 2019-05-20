@@ -171,17 +171,16 @@ export class Voice {
     const waveFunc = this.profile.wave;
     // const waveMod: WaveModulator = 
     const modulators: WaveModulator[] = [
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * (sampleIx / sampleRate) * frequency + x),
-      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
-      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * (sampleIx / sampleRate) * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x),
+      (sampleIx, sampleRate, frequency, x) => Math.sin(2 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(4 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(8 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.5 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
+      (sampleIx, sampleRate, frequency, x) => Math.sin(.25 * Math.PI * sampleIx / sampleRate * frequency + x) * .5,
     ];
     const vars = {};
     // const waveBind = {modulate: [waveMod], vars: {}};
@@ -196,7 +195,9 @@ export class Voice {
     for (; sampleIx < attackLen; sampleIx++) {
   
       val = this.volume
-      * (sampleIx / (this.sampleRate * attack))
+      * sampleIx
+      / this.sampleRate
+      * attack
       * waveFunc({
         sampleIx,
         sampleRate: this.sampleRate,
@@ -215,9 +216,9 @@ export class Voice {
     for (; sampleIx < decayLen; sampleIx++) {
 
       val = this.volume
-      * (1-(
+      * (1-
           (sampleIx - this.sampleRate * attack)
-          /(this.sampleRate * (time - attack))))
+          /(this.sampleRate * (time - attack)))
       ** dampen
       * waveFunc({
         sampleIx,
@@ -267,7 +268,7 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
     name: 'piano',
     attack: () => 0.002,
     dampen: (sampleRate, frequency, volume) => 
-    (0.5 * Math.log((frequency * volume) / sampleRate)) ** 2,
+    (0.5 * Math.log(frequency * volume / sampleRate)) ** 2,
     wave: ({
       sampleIx,
       sampleRate,
@@ -277,7 +278,7 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
       vars,
     }: WaveInput): number => {
       const base = modulators[0];
-      return modulators[1](
+      return base(
         sampleIx,
         sampleRate,
         frequency,
