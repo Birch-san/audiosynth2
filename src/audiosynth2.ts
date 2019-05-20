@@ -13,12 +13,14 @@ const pack = function(c: number, arg: number) {
   ][c];
 };
 
+export interface EnvelopeInput {
+  sampleRate: number;
+  frequency: number;
+  volume: number;
+}
+
 export type EnvelopeFunc
-= (
-  sampleRate: number,
-  frequency: number,
-  volume: number,
-  ) => number;
+= (input: EnvelopeInput) => number;
 
 // export type WaveFunc
 // = (
@@ -40,13 +42,15 @@ export interface WaveInput {
 export type WaveFunc
 = (input: WaveInput) => number;
 
+export interface ModulatorInput {
+  sampleIx: number;
+  sampleRate: number;
+  frequency: number;
+  x: number;
+}
+
 export type WaveModulator
-= (
-  sampleIx: number,
-  sampleRate: number,
-  frequency: number,
-  x: number,
-  ) => number;
+= (input: ModulatorInput) => number;
 
 export interface IVoiceProfile {
   name: string;
@@ -166,14 +170,14 @@ export class Voice {
     ? parseFloat(duration)
     : 2;
 
-    const attack = this.profile.attack(this.sampleRate, this.frequency, this.volume);
-    const dampen = this.profile.dampen(this.sampleRate, this.frequency, this.volume);
+    const attack = this.profile.attack({sampleRate: this.sampleRate, frequency: this.frequency, volume: this.volume});
+    const dampen = this.profile.dampen({sampleRate: this.sampleRate, frequency: this.frequency, volume: this.volume});
     const waveFunc = this.profile.wave;
     // const waveMod: WaveModulator = 
     const modulators: WaveModulator[]
     = [1, 0.5].flatMap((coefficient: number): WaveModulator[] =>
       [2, 4, 8, .5, .25].map((theta: number): WaveModulator =>
-        (sampleIx, sampleRate, frequency, x) =>
+        ({sampleIx, sampleRate, frequency, x}) =>
         coefficient * Math.sin(theta * Math.PI * sampleIx / sampleRate * frequency + x)));
     const vars = {};
     // const waveBind = {modulate: [waveMod], vars: {}};
@@ -260,7 +264,7 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
   piano: {
     name: 'piano',
     attack: () => 0.002,
-    dampen: (sampleRate, frequency, volume) => 
+    dampen: ({sampleRate, frequency, volume}) => 
     (0.5 * Math.log(frequency * volume / sampleRate)) ** 2,
     wave: ({
       sampleIx,
@@ -271,13 +275,14 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
       vars,
     }: WaveInput): number => {
       const base = modulators[0];
-      return base(
+      return base({
         sampleIx,
         sampleRate,
         frequency,
-        base(sampleIx, sampleRate, frequency, 0) ** 2
-        + 0.75 * base(sampleIx, sampleRate, frequency, 0.25)
-        + 0.1 * base(sampleIx, sampleRate, frequency, 0.5));
+        x: base({sampleIx, sampleRate, frequency, x: 0}) ** 2
+        + 0.75 * base({sampleIx, sampleRate, frequency, x: 0.25})
+        + 0.1 * base({sampleIx, sampleRate, frequency, x: 0.5})
+      });
     }
   }
 }
