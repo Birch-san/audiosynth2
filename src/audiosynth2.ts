@@ -135,7 +135,7 @@ export interface NoteGenerateYieldValue {
   // currentTime: number
   // gateTime: number
   // endTime?: number
-  duration: number
+  durationSecs: number
 }
 
 export class Voice {
@@ -176,9 +176,9 @@ export class Voice {
     this.playFromFor(ctx, undefined, durationSecs)
   }
 
-  playFromUntil(ctx: AudioContext, startTime: number = ctx.currentTime, endTime: number) {
-    const activeNote = this.noteOn(ctx, startTime)
-    activeNote.noteOff(endTime)
+  playInFor(ctx: AudioContext, waitSecs: number, durationSecs: number) {
+    const startTime = ctx.currentTime + waitSecs
+    this.playFromFor(ctx, startTime, durationSecs)
   }
 
   playFromFor(ctx: AudioContext, startTime: number = ctx.currentTime, durationSecs: number) {
@@ -186,17 +186,24 @@ export class Voice {
     this.playFromUntil(ctx, startTime, endTime)
   }
 
+  playFromUntil(ctx: AudioContext, startTime: number = ctx.currentTime, endTime: number) {
+    const activeNote = this.noteOn(ctx, startTime)
+    activeNote.noteOff(endTime)
+  }
+
   noteOn(ctx: AudioContext, startTime: number = ctx.currentTime): ActiveNote {
     // const startTime = ctx.currentTime
     // let [gateTime, endTime] = [Infinity, Infinity]
-    let duration = Infinity
+    let durationSecs = Infinity
     const gainNode = ctx.createGain()
     gainNode.connect(ctx.destination)
     const envelope = this.profile.envelope.clone()
     // envelope.gateTime = Infinity;
     envelope.applyTo(gainNode.gain, startTime)
 
-    const samples = this.generate(startTime)
+    const contextStartTime = ctx.currentTime
+
+    const samples = this.generate(contextStartTime, startTime)
     const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(
       0 /* consider non-zero on WebKit */,
       0,
@@ -209,7 +216,7 @@ export class Voice {
       for (let i = 0; i < out.length; i++) {
         const result: IteratorResult<number> = samples.next({
           // gateTime,
-          duration
+          durationSecs
         } as NoteGenerateYieldValue)
         if (result.done) {
           processorNode.disconnect()
@@ -230,7 +237,7 @@ export class Voice {
         gainNode.gain.cancelScheduledValues(startTime)
         envelope.gateTime = endTime - startTime
         // endTime = startTime + envelope.duration
-        duration = envelope.duration
+        durationSecs = envelope.duration
         // gainNode.gain.cancelScheduledValues(endTime)
         // envelope.applyTo(gainNode.gain, startTime);
         envelope.applyTo(gainNode.gain, startTime)
@@ -238,25 +245,29 @@ export class Voice {
     }
   }
 
-  *generate(startTime: number, scheduledEnd: number = Infinity): IterableIterator<number> {
+  *generate(
+    contextStartTime: number,
+    scheduledStart: number = contextStartTime,
+    scheduledEnd: number = Infinity
+  ): IterableIterator<number> {
     // var frequency = this._notes[note] * Math.pow(2,octave-4);
     // var sampleRate = this._sampleRate;
     // var volume = this._volume;
     // var channels = this._channels;
     // var bitsPerSample = this._bitsPerSample;
-    const duration: string | undefined = undefined
-    const time = duration ? parseFloat(duration) : 2
+    // const duration: string | undefined = undefined
+    // const time = duration ? parseFloat(duration) : 2
 
-    const attack = this.profile.attack({
-      sampleRate: this.sampleRate,
-      frequency: this.frequency,
-      volume: this.volume
-    })
-    const dampen = this.profile.dampen({
-      sampleRate: this.sampleRate,
-      frequency: this.frequency,
-      volume: this.volume
-    })
+    // const attack = this.profile.attack({
+    //   sampleRate: this.sampleRate,
+    //   frequency: this.frequency,
+    //   volume: this.volume
+    // })
+    // const dampen = this.profile.dampen({
+    //   sampleRate: this.sampleRate,
+    //   frequency: this.frequency,
+    //   volume: this.volume
+    // })
     const waveFunc = this.profile.wave
     // const waveMod: WaveModulator =
     const modulators: WaveModulator[] = [1, 0.5].flatMap(
@@ -266,43 +277,51 @@ export class Voice {
             coefficient * Math.sin(((theta * Math.PI * sampleIx) / sampleRate) * frequency + x)
         )
     )
-    const vars = {}
+    // const vars = {}
     // const waveBind = {modulate: [waveMod], vars: {}};
-    let val = 0
+    // let val = 0
     // let curVol = 0;
 
     // const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)))
     // 44000 * 0.00
-    const attackLen = (this.sampleRate * attack) | 0
-    const decayLen = (this.sampleRate * time) | 0
+    // const attackLen = (this.sampleRate * attack) | 0
+    // const decayLen = (this.sampleRate * time) | 0
 
-    let currentTime, gateTime
+    // let currentTime, gateTime
+    let durationSecs = scheduledEnd - scheduledStart
     let sampleIx = 0
     // for (; sampleIx < attackLen; sampleIx++) {
     for (; ; sampleIx++) {
       // (0*0.002)/44000
       // (1*0.002)/44000
+      const timeElapsed = sampleIx / this.sampleRate
+      if (timeElapsed >= durationSecs) {
+        break
+      }
 
-      val = waveFunc({
-        sampleIx,
-        sampleRate: this.sampleRate,
-        frequency: this.frequency,
-        volume: this.volume,
-        modulators,
-        vars
-      })
+      const currentTime = contextStartTime + timeElapsed
+      let val
+      if (currentTime < scheduledStart) {
+        val = 0
+      } else {
+        val = waveFunc({
+          sampleIx,
+          sampleRate: this.sampleRate,
+          frequency: this.frequency,
+          volume: this.volume,
+          modulators,
+          vars: {}
+        })
+      }
 
       // data[sampleIx << 1] = val * 32768
       // data[(sampleIx << 1) + 1] = (val * 32768) >> 8
 
       // yield val
-      const { duration }: NoteGenerateYieldValue = yield val
-      const timeElapsed = sampleIx / this.sampleRate
+      const obj: NoteGenerateYieldValue = yield val
+      durationSecs = obj.durationSecs
       // const currentTime = startTime + timeElapsed
       // if (currentTime >= gateTime) {
-      if (timeElapsed >= duration) {
-        break
-      }
     }
 
     // for (; sampleIx < decayLen; sampleIx++) {
@@ -368,9 +387,11 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
       })
     },
     envelope: new ADSREnvelope({
-      attackTime: 0.01,
-      attackCurve: 'exp',
-      decayTime: 0.8,
+      // attack 1ms or less to create sharp transients
+      attackTime: 0.001,
+      attackCurve: 'lin',
+      decayTime: 0.1,
+      sustainLevel: 0.8,
       releaseTime: 0.5,
       releaseCurve: 'exp'
     })
