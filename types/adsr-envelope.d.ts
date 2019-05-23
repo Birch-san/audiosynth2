@@ -21,16 +21,16 @@ declare class ADSREnvelope {
   getWebAudioAPIMethods(playbackTime?: number): any[];
   valueAt(time: number): number;
 
-  readonly duration: number;
-  readonly attackTime: number;
-  readonly decayTime: number;
-  readonly sustainTime: number;
-  readonly sustainLevel: number;
-  readonly releaseTime: number;
-  readonly gateTime: number;
-  readonly peakLevel: number;
-  readonly epsilon: number;
-  readonly attackCurve: string;
-  readonly decayCurve: string;
-  readonly releaseCurve: string;
+  duration: number;
+  attackTime: number;
+  decayTime: number;
+  sustainTime: number;
+  sustainLevel: number;
+  releaseTime: number;
+  gateTime: number;
+  peakLevel: number;
+  epsilon: number;
+  attackCurve: string;
+  decayCurve: string;
+  releaseCurve: string;
 }

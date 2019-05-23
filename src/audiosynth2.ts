@@ -51,6 +51,7 @@ export interface IVoiceProfile {
   attack: EnvelopeFunc
   dampen: EnvelopeFunc
   wave: WaveFunc
+  envelope: ADSREnvelope
 }
 
 export interface IAudioSynthOptions {
@@ -101,7 +102,7 @@ export interface IVoiceOptions {
  **/
 
 export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
-  const samples = voice.generate()
+  const samples = voice.generate(ctx.currentTime)
   const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(
     0 /* consider non-zero on WebKit */,
     0,
@@ -125,6 +126,18 @@ export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
   }
 }
 
+export type NoteOff = (endTime?: number) => void
+export interface ActiveNote {
+  noteOff: NoteOff
+}
+
+export interface NoteGenerateYieldValue {
+  // currentTime: number
+  // gateTime: number
+  // endTime?: number
+  duration: number
+}
+
 export class Voice {
   private readonly profile: IVoiceProfile
   private readonly sampleRate: number
@@ -132,7 +145,7 @@ export class Voice {
   private readonly bitsPerSample: number
   public readonly channels: number
   private readonly volume: number
-  private readonly _envelope: ADSREnvelope
+  // private readonly envelope: ADSREnvelope
 
   constructor({
     profile,
@@ -148,21 +161,84 @@ export class Voice {
     this.bitsPerSample = bitsPerSample
     this.channels = channels
     this.volume = volume
-    this._envelope = new ADSREnvelope({
-      attackTime: 0.5,
-      decayTime: 0.25,
-      sustainLevel: 0.8,
-      releaseTime: 2.5,
-      gateTime: 6,
-      releaseCurve: 'exp'
-    })
+    // this.envelope = profile.envelope.clone();
   }
 
-  get envelope(): ADSREnvelope {
-    return this._envelope
+  // get envelope(): ADSREnvelope {
+  //   return this._envelope
+  // }
+
+  playUntil(ctx: AudioContext, endTime: number) {
+    this.playFromUntil(ctx, undefined, endTime)
   }
 
-  *generate(): IterableIterator<number> {
+  playFor(ctx: AudioContext, durationSecs: number) {
+    this.playFromFor(ctx, undefined, durationSecs)
+  }
+
+  playFromUntil(ctx: AudioContext, startTime: number = ctx.currentTime, endTime: number) {
+    const activeNote = this.noteOn(ctx, startTime)
+    activeNote.noteOff(endTime)
+  }
+
+  playFromFor(ctx: AudioContext, startTime: number = ctx.currentTime, durationSecs: number) {
+    const endTime = startTime + durationSecs
+    this.playFromUntil(ctx, startTime, endTime)
+  }
+
+  noteOn(ctx: AudioContext, startTime: number = ctx.currentTime): ActiveNote {
+    // const startTime = ctx.currentTime
+    // let [gateTime, endTime] = [Infinity, Infinity]
+    let duration = Infinity
+    const gainNode = ctx.createGain()
+    gainNode.connect(ctx.destination)
+    const envelope = this.profile.envelope.clone()
+    // envelope.gateTime = Infinity;
+    envelope.applyTo(gainNode.gain, startTime)
+
+    const samples = this.generate(startTime)
+    const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(
+      0 /* consider non-zero on WebKit */,
+      0,
+      this.channels
+    )
+
+    processorNode.connect(gainNode)
+    processorNode.onaudioprocess = (event: AudioProcessingEvent) => {
+      const out: Float32Array = event.outputBuffer.getChannelData(0)
+      for (let i = 0; i < out.length; i++) {
+        const result: IteratorResult<number> = samples.next({
+          // gateTime,
+          duration
+        } as NoteGenerateYieldValue)
+        if (result.done) {
+          processorNode.disconnect()
+          gainNode.disconnect()
+          processorNode.onaudioprocess = null
+          break
+        }
+        // const val = Math.floor(result.value);
+        out[i] = result.value
+        // out[i << 1] = val;
+        // out[(i << 1) + 1] = val >> 8;
+      }
+    }
+
+    return {
+      noteOff: (endTime: number = ctx.currentTime) => {
+        // const endTime = ctx.currentTime
+        gainNode.gain.cancelScheduledValues(startTime)
+        envelope.gateTime = endTime - startTime
+        // endTime = startTime + envelope.duration
+        duration = envelope.duration
+        // gainNode.gain.cancelScheduledValues(endTime)
+        // envelope.applyTo(gainNode.gain, startTime);
+        envelope.applyTo(gainNode.gain, startTime)
+      }
+    }
+  }
+
+  *generate(startTime: number, scheduledEnd: number = Infinity): IterableIterator<number> {
     // var frequency = this._notes[note] * Math.pow(2,octave-4);
     // var sampleRate = this._sampleRate;
     // var volume = this._volume;
@@ -195,13 +271,15 @@ export class Voice {
     let val = 0
     // let curVol = 0;
 
-    const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)))
+    // const data = new Uint8Array(new ArrayBuffer(Math.ceil(this.sampleRate * time * 2)))
     // 44000 * 0.00
     const attackLen = (this.sampleRate * attack) | 0
     const decayLen = (this.sampleRate * time) | 0
 
+    let currentTime, gateTime
     let sampleIx = 0
-    for (; sampleIx < attackLen; sampleIx++) {
+    // for (; sampleIx < attackLen; sampleIx++) {
+    for (; ; sampleIx++) {
       // (0*0.002)/44000
       // (1*0.002)/44000
 
@@ -214,29 +292,36 @@ export class Voice {
         vars
       })
 
-      data[sampleIx << 1] = val * 32768
-      data[(sampleIx << 1) + 1] = (val * 32768) >> 8
+      // data[sampleIx << 1] = val * 32768
+      // data[(sampleIx << 1) + 1] = (val * 32768) >> 8
 
-      yield val
+      // yield val
+      const { duration }: NoteGenerateYieldValue = yield val
+      const timeElapsed = sampleIx / this.sampleRate
+      // const currentTime = startTime + timeElapsed
+      // if (currentTime >= gateTime) {
+      if (timeElapsed >= duration) {
+        break
+      }
     }
 
-    for (; sampleIx < decayLen; sampleIx++) {
-      val = waveFunc({
-        sampleIx,
-        sampleRate: this.sampleRate,
-        frequency: this.frequency,
-        volume: this.volume,
-        modulators,
-        vars
-      })
+    // for (; sampleIx < decayLen; sampleIx++) {
+    //   val = waveFunc({
+    //     sampleIx,
+    //     sampleRate: this.sampleRate,
+    //     frequency: this.frequency,
+    //     volume: this.volume,
+    //     modulators,
+    //     vars
+    //   })
 
-      data[sampleIx << 1] = val * 32768
-      data[(sampleIx << 1) + 1] = (val * 32768) >> 8
+    //   data[sampleIx << 1] = val * 32768
+    //   data[(sampleIx << 1) + 1] = (val * 32768) >> 8
 
-      yield val
-    }
+    //   yield val
+    // }
 
-    console.log(data)
+    // console.log(data)
 
     // var out = [
     //   'RIFF',
@@ -281,6 +366,13 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
           0.75 * base({ sampleIx, sampleRate, frequency, x: 0.25 }) +
           0.1 * base({ sampleIx, sampleRate, frequency, x: 0.5 })
       })
-    }
+    },
+    envelope: new ADSREnvelope({
+      attackTime: 0.01,
+      attackCurve: 'exp',
+      decayTime: 0.8,
+      releaseTime: 0.5,
+      releaseCurve: 'exp'
+    })
   }
 }
