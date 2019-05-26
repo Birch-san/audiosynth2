@@ -1,4 +1,5 @@
 import ADSREnvelope from 'adsr-envelope'
+import { clone } from '@babel/types'
 
 // Import here Polyfills if needed. Recommended core-js (npm i -D core-js)
 // import "core-js/fn/array.find"
@@ -138,48 +139,99 @@ export interface NoteGenerateYieldValue {
   durationSecs: number
 }
 
+// export interface FluentVoiceOptions {
+//   voice: Voice
+//   ctx: AudioContext
+//   jobs: VoiceJob[]
+// }
+
+export interface VoiceJob {
+  callback: (ctx: AudioContext, ...args: any[]) => void
+  delayMs?: number
+}
+
+export class FluentVoice {
+  private readonly jobs: VoiceJob[] = []
+
+  constructor(private readonly voice: Voice) {}
+
+  perform(ctx: AudioContext) {
+    this.jobs.forEach((job: VoiceJob) => setTimeout(job.callback.bind(null, ctx), job.delayMs))
+  }
+
+  // clone(overrides?: Partial<FluentVoiceOptions>): FluentVoice {
+  //   return new FluentVoice(Object.assign({
+  //     voice: this.voice,
+  //     ctx: this.ctx,
+  //     delayMs: this.delayMs,
+  //   }, jobs));
+  // }
+
+  playFor(durationSecs: number): FluentVoice {
+    this.jobs.push({
+      callback: (ctx: AudioContext) => this.voice.playFor(ctx, durationSecs)
+    })
+    return this
+  }
+
+  playFromFor(waitSecs: number, durationSecs: number): FluentVoice {
+    this.jobs.push({
+      callback: (ctx: AudioContext) => this.voice.playFor(ctx, durationSecs),
+      delayMs: waitSecs * 1000
+    })
+    return this
+  }
+}
+
 export class Voice {
   private readonly profile: IVoiceProfile
   private readonly sampleRate: number
   private readonly frequency: number
-  private readonly bitsPerSample: number
+  // private readonly bitsPerSample: number
   public readonly channels: number
   private readonly volume: number
-  // private readonly envelope: ADSREnvelope
 
   constructor({
     profile,
     sampleRate,
     frequency,
-    bitsPerSample = 16,
+    // bitsPerSample = 16,
     channels = 1,
     volume = 1
   }: IVoiceOptions) {
     this.profile = profile
     this.sampleRate = sampleRate
     this.frequency = frequency
-    this.bitsPerSample = bitsPerSample
+    // this.bitsPerSample = bitsPerSample
     this.channels = channels
     this.volume = volume
-    // this.envelope = profile.envelope.clone();
+  }
+
+  fluent(): FluentVoice {
+    return new FluentVoice(this)
   }
 
   // get envelope(): ADSREnvelope {
   //   return this._envelope
   // }
 
-  playUntil(ctx: AudioContext, endTime: number) {
-    this.playFromUntil(ctx, undefined, endTime)
-  }
+  // after(waitSecs: number): Voice {
+  //   // , callback: (this: Voice, ...args: any[]) => void
+  //   setTimeout(callback, waitSecs * 1000)
+  // }
+
+  // playUntil(ctx: AudioContext, endTime: number) {
+  //   this.playFromUntil(ctx, undefined, endTime)
+  // }
 
   playFor(ctx: AudioContext, durationSecs: number) {
     this.playFromFor(ctx, undefined, durationSecs)
   }
 
-  playInFor(ctx: AudioContext, waitSecs: number, durationSecs: number) {
-    const startTime = ctx.currentTime + waitSecs
-    this.playFromFor(ctx, startTime, durationSecs)
-  }
+  // playInFor(ctx: AudioContext, waitSecs: number, durationSecs: number) {
+  //   const startTime = ctx.currentTime + waitSecs
+  //   this.playFromFor(ctx, startTime, durationSecs)
+  // }
 
   playFromFor(ctx: AudioContext, startTime: number = ctx.currentTime, durationSecs: number) {
     const endTime = startTime + durationSecs
@@ -201,9 +253,7 @@ export class Voice {
     // envelope.gateTime = Infinity;
     envelope.applyTo(gainNode.gain, startTime)
 
-    const contextStartTime = ctx.currentTime
-
-    const samples = this.generate(contextStartTime, startTime)
+    const samples = this.generate()
     const processorNode: ScriptProcessorNode = ctx.createScriptProcessor(
       0 /* consider non-zero on WebKit */,
       0,
@@ -245,11 +295,7 @@ export class Voice {
     }
   }
 
-  *generate(
-    contextStartTime: number,
-    scheduledStart: number = contextStartTime,
-    scheduledEnd: number = Infinity
-  ): IterableIterator<number> {
+  *generate(initialDurationSecs: number = Infinity): IterableIterator<number> {
     // var frequency = this._notes[note] * Math.pow(2,octave-4);
     // var sampleRate = this._sampleRate;
     // var volume = this._volume;
@@ -288,7 +334,7 @@ export class Voice {
     // const decayLen = (this.sampleRate * time) | 0
 
     // let currentTime, gateTime
-    let durationSecs = scheduledEnd - scheduledStart
+    let durationSecs = initialDurationSecs
     let sampleIx = 0
     // for (; sampleIx < attackLen; sampleIx++) {
     for (; ; sampleIx++) {
@@ -299,20 +345,14 @@ export class Voice {
         break
       }
 
-      const currentTime = contextStartTime + timeElapsed
-      let val
-      if (currentTime < scheduledStart) {
-        val = 0
-      } else {
-        val = waveFunc({
-          sampleIx,
-          sampleRate: this.sampleRate,
-          frequency: this.frequency,
-          volume: this.volume,
-          modulators,
-          vars: {}
-        })
-      }
+      const val = waveFunc({
+        sampleIx,
+        sampleRate: this.sampleRate,
+        frequency: this.frequency,
+        volume: this.volume,
+        modulators,
+        vars: {}
+      })
 
       // data[sampleIx << 1] = val * 32768
       // data[(sampleIx << 1) + 1] = (val * 32768) >> 8
