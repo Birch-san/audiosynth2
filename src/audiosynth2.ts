@@ -130,6 +130,7 @@ export const getScriptProcessor = (ctx: AudioContext, voice: Voice) => {
 export type NoteOff = (endTime?: number) => void
 export interface ActiveNote {
   noteOff: NoteOff
+  gainNode: GainNode
 }
 
 export interface NoteGenerateYieldValue {
@@ -259,7 +260,6 @@ export class Voice {
     // let [gateTime, endTime] = [Infinity, Infinity]
     let durationSecs = Infinity
     const gainNode = ctx.createGain()
-    gainNode.connect(ctx.destination)
     const envelope = this.profile.envelope.clone()
     // envelope.gateTime = Infinity;
     envelope.applyTo(gainNode.gain, startTime)
@@ -302,7 +302,8 @@ export class Voice {
         // gainNode.gain.cancelScheduledValues(endTime)
         // envelope.applyTo(gainNode.gain, startTime);
         envelope.applyTo(gainNode.gain, startTime)
-      }
+      },
+      gainNode
     }
   }
 
@@ -434,6 +435,7 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
           base({ sampleIx, sampleRate, frequency, x: 0 }) ** 2 +
           0.75 * base({ sampleIx, sampleRate, frequency, x: 0.25 }) +
           0.1 * base({ sampleIx, sampleRate, frequency, x: 0.5 })
+        // x: 1
       })
     },
     envelope: new ADSREnvelope({
@@ -441,7 +443,7 @@ export const voiceProfiles: Record<'piano', IVoiceProfile> = {
       attackTime: 0.01,
       attackCurve: 'lin',
       decayTime: 0.01,
-      sustainTime: 0.5,
+      // sustainTime: 0.5,
       sustainLevel: 0.8,
       releaseTime: 0.3,
       releaseCurve: 'exp'
