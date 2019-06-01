@@ -339,32 +339,33 @@ export class Voice {
     // const decayLen = (this.sampleRate * time) | 0
 
     // let currentTime, gateTime
-    let durationSecs = initialDurationSecs
-    let sampleIx = 0
+    // let durationSecs = initialDurationSecs
     // for (; sampleIx < attackLen; sampleIx++) {
-    for (; ; sampleIx++) {
+    for (
+      let sampleIx = 0, durationSecs = initialDurationSecs;
+      sampleIx / this.sampleRate < durationSecs;
+      sampleIx++
+    ) {
       // (0*0.002)/44000
       // (1*0.002)/44000
-      const timeElapsed = sampleIx / this.sampleRate
-      if (timeElapsed >= durationSecs) {
-        break
-      }
 
-      const val = this.profile.wave({
+      // const timeElapsed = sampleIx / this.sampleRate
+      // if (timeElapsed >= durationSecs) {
+      //   break
+      // }
+
+      // data[sampleIx << 1] = val * 32768
+      // data[(sampleIx << 1) + 1] = (val * 32768) >> 8
+
+      // yield val
+      durationSecs = (yield this.profile.wave({
         sampleIx,
         sampleRate: this.sampleRate,
         frequency: this.frequency,
         volume: this.volume,
         // modulators,
         vars: {}
-      })
-
-      // data[sampleIx << 1] = val * 32768
-      // data[(sampleIx << 1) + 1] = (val * 32768) >> 8
-
-      // yield val
-      const obj: NoteGenerateYieldValue = yield val
-      durationSecs = obj.durationSecs
+      })).durationSecs
       // const currentTime = startTime + timeElapsed
       // if (currentTime >= gateTime) {
     }
