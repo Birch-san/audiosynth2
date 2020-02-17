@@ -1,7 +1,7 @@
 import resolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
 import sourceMaps from 'rollup-plugin-sourcemaps'
-import camelCase from 'lodash.camelcase'
+// import camelCase from 'lodash.camelcase'
 // import typescript from 'rollup-plugin-typescript'
 import typescript2 from 'rollup-plugin-typescript2'
 import renameExtensions from '@betit/rollup-plugin-rename-extensions'
