@@ -24,15 +24,14 @@
     "start": "rollup -c rollup.config.ts -w",
     "test": "jest --coverage",
     "test:watch": "jest --coverage --watch",
-    "test:prod": "npm run lint && npm run test -- --no-cache",
+    "_disabled_test:prod": "npm run lint && npm run test -- --no-cache",
+    "test:prod": "",
     "deploy-docs": "ts-node tools/gh-pages-publish",
     "report-coverage": "cat ./coverage/lcov.info | coveralls",
     "commit": "git-cz",
     "semantic-release": "semantic-release",
     "semantic-release-prepare": "ts-node tools/semantic-release-prepare",
-    "precommit": "lint-staged",
-    "travis-deploy-once": "travis-deploy-once",
-    "postinstall": "npm run build"
+    "travis-deploy-once": "travis-deploy-once"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
@@ -120,5 +119,17 @@
   },
   "dependencies": {
     "adsr-envelope": "^1.0.0"
+  },
+  "_disabled_husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test:prod && npm run build"
+    }
+  },
+  "_disabled_release": {
+    "plugins": [
+      "@semantic-release/github"
+    ]
   }
 }
